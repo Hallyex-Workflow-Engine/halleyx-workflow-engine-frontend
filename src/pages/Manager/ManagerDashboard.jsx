@@ -1,53 +1,56 @@
 import { useEffect, useState } from 'react'
 import { getPendingApprovals, approveStep, rejectStep, getAllExecutions } from '../../api/ExecutionApi'
+import { getAllUsers } from '../../api/userApi'
 import StatusBadge from '../../components/StatusBadge'
 import { useAuth } from '../../context/AuthContext'
 
 export default function ManagerDashboard() {
   const { user } = useAuth()
 
-  const [activeTab, setActiveTab]       = useState('pending')
-  const [pending, setPending]           = useState([])
-  const [myHistory, setMyHistory]       = useState([])
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState('')
-  const [rejectModal, setRejectModal]   = useState(null)
-  const [comment, setComment]           = useState('')
-  const [selected, setSelected]         = useState(null)
+  const [activeTab, setActiveTab]     = useState('pending')
+  const [pending, setPending]         = useState([])
+  const [myHistory, setMyHistory]     = useState([])
+  const [users, setUsers]             = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState('')
+  const [rejectModal, setRejectModal] = useState(null)
+  const [comment, setComment]         = useState('')
+  const [selected, setSelected]       = useState(null)
 
   useEffect(() => { loadAll() }, [])
 
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [pendingRes, allRes] = await Promise.all([
+      const [pendingRes, allRes, usersRes] = await Promise.all([
         getPendingApprovals(user.email),
-        getAllExecutions()
+        getAllExecutions(),
+        getAllUsers()
       ])
       setPending(pendingRes.data || [])
-      // my history — executions where I was the approver
-      const mine = (allRes.data || []).filter(ex =>
+      setMyHistory((allRes.data || []).filter(ex =>
         ex.logs?.some(l => l.approver_id === user.id)
-      )
-      setMyHistory(mine)
+      ))
+      setUsers(usersRes.data || [])
     } catch { setError('Failed to load') }
     finally  { setLoading(false) }
   }
 
+  const getUserName = (id) => {
+    const u = users.find(u => u.id === id)
+    return u ? u.name : id ? id.substring(0, 8) + '...' : '—'
+  }
+
   const handleApprove = async (execId) => {
-    try {
-      await approveStep(execId, user.id)
-      loadAll()
-    } catch { setError('Approve failed') }
+    try { await approveStep(execId, user.id); loadAll() }
+    catch { setError('Approve failed') }
   }
 
   const handleReject = async () => {
     if (!comment.trim()) { setError('Comment is required for rejection'); return }
     try {
       await rejectStep(rejectModal.id, user.id, comment)
-      setRejectModal(null)
-      setComment('')
-      loadAll()
+      setRejectModal(null); setComment(''); loadAll()
     } catch { setError('Reject failed') }
   }
 
@@ -87,7 +90,6 @@ export default function ManagerDashboard() {
         </button>
       </div>
 
-      {/* TAB 1 — Pending Approvals */}
       {activeTab === 'pending' && (
         <div>
           {pending.length === 0 ? (
@@ -106,7 +108,7 @@ export default function ManagerDashboard() {
                     Step: <strong>{ex.currentStepName}</strong>
                   </p>
                   <p style={{ fontSize: '12px', color: '#999', margin: '2px 0 0' }}>
-                    Submitted by: {ex.triggeredBy}
+                    Submitted by: <strong>{getUserName(ex.triggeredBy)}</strong>
                   </p>
                   <p style={{ fontSize: '12px', color: '#999', margin: '2px 0 0' }}>
                     Started: {ex.startedAt
@@ -116,7 +118,6 @@ export default function ManagerDashboard() {
                 <StatusBadge status={ex.status} />
               </div>
 
-              {/* Input data */}
               {ex.inputData && (
                 <div style={{ marginBottom: '12px' }}>
                   <p style={{ fontSize: '12px', fontWeight: '500',
@@ -134,7 +135,6 @@ export default function ManagerDashboard() {
                 </div>
               )}
 
-              {/* Previous steps log */}
               {ex.logs && ex.logs.length > 0 && (
                 <div style={{ marginBottom: '12px' }}>
                   <p style={{ fontSize: '12px', fontWeight: '500',
@@ -143,41 +143,34 @@ export default function ManagerDashboard() {
                   </p>
                   {ex.logs.map((log, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center',
-                      gap: '8px', fontSize: '12px', marginBottom: '4px',
-                      color: '#666' }}>
+                      gap: '8px', fontSize: '12px', marginBottom: '4px', color: '#666' }}>
                       <span style={{ color: log.status === 'completed'
                         ? '#22c55e' : '#ef4444', fontWeight: '700' }}>
                         {log.status === 'completed' ? '✓' : '✗'}
                       </span>
                       <span>{log.step_name}</span>
                       {log.approver_id && (
-                        <span style={{ color: '#4f46e5' }}>by {log.approver_id}</span>
+                        <span style={{ color: '#4f46e5' }}>
+                          by {getUserName(log.approver_id)}
+                        </span>
                       )}
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid #f3f4f6',
-                            paddingTop: '12px' }}>
-                <button className="btn btn-success"
-                  style={{ padding: '8px 20px' }}
-                  onClick={() => handleApprove(ex.id)}>
-                  Approve
-                </button>
-                <button className="btn btn-danger"
-                  style={{ padding: '8px 20px' }}
-                  onClick={() => { setRejectModal(ex); setComment('') }}>
-                  Reject
-                </button>
+              <div style={{ display: 'flex', gap: '8px',
+                            borderTop: '1px solid #f3f4f6', paddingTop: '12px' }}>
+                <button className="btn btn-success" style={{ padding: '8px 20px' }}
+                  onClick={() => handleApprove(ex.id)}>Approve</button>
+                <button className="btn btn-danger" style={{ padding: '8px 20px' }}
+                  onClick={() => { setRejectModal(ex); setComment('') }}>Reject</button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* TAB 2 — History */}
       {activeTab === 'history' && (
         <div>
           {myHistory.length === 0 ? (
@@ -189,12 +182,8 @@ export default function ManagerDashboard() {
               <table>
                 <thead>
                   <tr>
-                    <th>Workflow</th>
-                    <th>Version</th>
-                    <th>Status</th>
-                    <th>Triggered By</th>
-                    <th>Started</th>
-                    <th>Actions</th>
+                    <th>Workflow</th><th>Version</th><th>Status</th>
+                    <th>Triggered By</th><th>Started</th><th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -205,11 +194,10 @@ export default function ManagerDashboard() {
                         <td>v{ex.workflowVersion}</td>
                         <td><StatusBadge status={ex.status} /></td>
                         <td style={{ fontSize: '12px', color: '#666' }}>
-                          {ex.triggeredBy || '—'}
+                          {getUserName(ex.triggeredBy)}
                         </td>
                         <td style={{ fontSize: '12px', color: '#666' }}>
-                          {ex.startedAt
-                            ? new Date(ex.startedAt).toLocaleString() : '—'}
+                          {ex.startedAt ? new Date(ex.startedAt).toLocaleString() : '—'}
                         </td>
                         <td>
                           <button className="btn"
@@ -225,8 +213,7 @@ export default function ManagerDashboard() {
                       </tr>
                       {selected?.id === ex.id && (
                         <tr key={ex.id + '-logs'}>
-                          <td colSpan={6} style={{ background: '#fafafa',
-                                                    padding: '16px' }}>
+                          <td colSpan={6} style={{ background: '#fafafa', padding: '16px' }}>
                             {ex.logs?.map((log, i) => (
                               <div key={i} style={{
                                 border: '1px solid #e5e5e5', borderRadius: '8px',
@@ -236,16 +223,15 @@ export default function ManagerDashboard() {
                               }}>
                                 <div style={{ display: 'flex',
                                               justifyContent: 'space-between' }}>
-                                  <span style={{ fontWeight: '600' }}>
-                                    {log.step_name}
-                                  </span>
+                                  <span style={{ fontWeight: '600' }}>{log.step_name}</span>
                                   <span style={{ fontSize: '11px', color: '#999' }}>
                                     {log.status}
                                   </span>
                                 </div>
-                                <div style={{ fontSize: '12px',
-                                              color: '#666', marginTop: '4px' }}>
-                                  {log.approver_id && `Approver: ${log.approver_id}`}
+                                <div style={{ fontSize: '12px', color: '#666',
+                                              marginTop: '4px' }}>
+                                  {log.approver_id &&
+                                    `By: ${getUserName(log.approver_id)}`}
                                   {log.comment && ` · ${log.comment}`}
                                 </div>
                               </div>
@@ -262,7 +248,6 @@ export default function ManagerDashboard() {
         </div>
       )}
 
-      {/* Reject Modal */}
       {rejectModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.4)', display: 'flex',
@@ -284,9 +269,7 @@ export default function ManagerDashboard() {
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button className="btn"
-                onClick={() => { setRejectModal(null); setComment('') }}>
-                Cancel
-              </button>
+                onClick={() => { setRejectModal(null); setComment('') }}>Cancel</button>
               <button className="btn btn-danger" onClick={handleReject}>
                 Confirm Reject
               </button>

@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+
+axios.defaults.withCredentials = true;
 export const startExecution    = (workflowId, data) => axios.post(`/api/workflows/${workflowId}/execute`, data)
 export const getExecution      = (id)               => axios.get(`/api/executions/${id}`)
 export const getAllExecutions   = ()                 => axios.get('/api/executions')
