@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react'
 import { getPendingApprovals, approveStep, rejectStep, getAllExecutions } from '../../api/ExecutionApi'
 import { getStepsByWorkflow } from '../../api/stepApi'
+import { getAllUsers } from '../../api/userApi'
 import StatusBadge from '../../components/StatusBadge'
 import { useAuth } from '../../context/AuthContext'
 
 export default function CeoDashboard() {
   const { user } = useAuth()
 
-  const [activeTab, setActiveTab]   = useState('pending')
-  const [pending, setPending]       = useState([])
-  const [allExecutions, setAll]     = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState('')
-  const [rejectModal, setRejectModal] = useState(null)
-  const [comment, setComment]       = useState('')
-  const [expandedEx, setExpandedEx] = useState(null)
+  const [activeTab, setActiveTab]         = useState('pending')
+  const [pending, setPending]             = useState([])
+  const [allExecutions, setAll]           = useState([])
+  const [users, setUsers]                 = useState([])
+  const [loading, setLoading]             = useState(true)
+  const [error, setError]                 = useState('')
+  const [rejectModal, setRejectModal]     = useState(null)
+  const [comment, setComment]             = useState('')
+  const [expandedEx, setExpandedEx]       = useState(null)
   const [expandedSteps, setExpandedSteps] = useState([])
 
   useEffect(() => { loadAll() }, [])
@@ -22,14 +24,21 @@ export default function CeoDashboard() {
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [pendingRes, allRes] = await Promise.all([
+      const [pendingRes, allRes, usersRes] = await Promise.all([
         getPendingApprovals(user.email),
-        getAllExecutions()
+        getAllExecutions(),
+        getAllUsers()
       ])
       setPending(pendingRes.data || [])
       setAll(allRes.data || [])
+      setUsers(usersRes.data || [])
     } catch { setError('Failed to load') }
     finally  { setLoading(false) }
+  }
+
+  const getUserName = (id) => {
+    const u = users.find(u => u.id === id)
+    return u ? u.name : id ? id.substring(0, 8) + '...' : '—'
   }
 
   const handleApprove = async (execId) => {
@@ -90,7 +99,7 @@ export default function CeoDashboard() {
         </button>
       </div>
 
-      {/* TAB 1 — Pending */}
+     
       {activeTab === 'pending' && (
         <div>
           {pending.length === 0 ? (
@@ -109,13 +118,12 @@ export default function CeoDashboard() {
                     Waiting: <strong>{ex.currentStepName}</strong>
                   </p>
                   <p style={{ fontSize: '12px', color: '#999', margin: '2px 0 0' }}>
-                    Triggered by: {ex.triggeredBy}
+                    Triggered by: <strong>{getUserName(ex.triggeredBy)}</strong>
                   </p>
                 </div>
                 <StatusBadge status={ex.status} />
               </div>
 
-              {/* Input data */}
               {ex.inputData && (
                 <div style={{ marginBottom: '12px' }}>
                   <p style={{ fontSize: '12px', fontWeight: '500',
@@ -133,7 +141,6 @@ export default function CeoDashboard() {
                 </div>
               )}
 
-              {/* All previous steps */}
               {ex.logs && ex.logs.length > 0 && (
                 <div style={{ marginBottom: '12px' }}>
                   <p style={{ fontSize: '12px', fontWeight: '500',
@@ -151,7 +158,7 @@ export default function CeoDashboard() {
                       <span style={{ color: '#999' }}>{log.step_type}</span>
                       {log.approver_id && (
                         <span style={{ color: '#4f46e5' }}>
-                          approved by {log.approver_id}
+                          approved by {getUserName(log.approver_id)}
                         </span>
                       )}
                     </div>
@@ -161,23 +168,17 @@ export default function CeoDashboard() {
 
               <div style={{ display: 'flex', gap: '8px',
                             borderTop: '1px solid #f3f4f6', paddingTop: '12px' }}>
-                <button className="btn btn-success"
-                  style={{ padding: '8px 20px' }}
-                  onClick={() => handleApprove(ex.id)}>
-                  Approve
-                </button>
-                <button className="btn btn-danger"
-                  style={{ padding: '8px 20px' }}
-                  onClick={() => { setRejectModal(ex); setComment('') }}>
-                  Reject
-                </button>
+                <button className="btn btn-success" style={{ padding: '8px 20px' }}
+                  onClick={() => handleApprove(ex.id)}>Approve</button>
+                <button className="btn btn-danger" style={{ padding: '8px 20px' }}
+                  onClick={() => { setRejectModal(ex); setComment('') }}>Reject</button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* TAB 2 — All Executions */}
+     
       {activeTab === 'all' && (
         <div>
           {allExecutions.length === 0 ? (
@@ -190,19 +191,17 @@ export default function CeoDashboard() {
                             alignItems: 'center' }}>
                 <div>
                   <span style={{ fontWeight: '600' }}>{ex.workflowName}</span>
-                  <span style={{ fontSize: '11px', color: '#999',
-                                 marginLeft: '8px' }}>
+                  <span style={{ fontSize: '11px', color: '#999', marginLeft: '8px' }}>
                     v{ex.workflowVersion}
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   <StatusBadge status={ex.status} />
                   <span style={{ fontSize: '12px', color: '#666' }}>
-                    {ex.triggeredBy}
+                    {getUserName(ex.triggeredBy)}
                   </span>
                   <span style={{ fontSize: '12px', color: '#999' }}>
-                    {ex.startedAt
-                      ? new Date(ex.startedAt).toLocaleString() : '—'}
+                    {ex.startedAt ? new Date(ex.startedAt).toLocaleString() : '—'}
                   </span>
                   <button className="btn"
                     style={{ fontSize: '12px', padding: '4px 10px',
@@ -214,7 +213,6 @@ export default function CeoDashboard() {
                 </div>
               </div>
 
-              {/* Expanded — all steps */}
               {expandedEx?.id === ex.id && (
                 <div style={{ marginTop: '16px', borderTop: '1px solid #f3f4f6',
                               paddingTop: '16px' }}>
@@ -264,7 +262,9 @@ export default function CeoDashboard() {
                           <div style={{ fontSize: '11px', color: '#666',
                                         textAlign: 'right' }}>
                             <div style={{ fontWeight: '500' }}>{log.status}</div>
-                            {log.approver_id && <div>by {log.approver_id}</div>}
+                            {log.approver_id && (
+                              <div>by {getUserName(log.approver_id)}</div>
+                            )}
                             {log.comment && (
                               <div style={{ color: '#dc2626' }}>{log.comment}</div>
                             )}
@@ -277,15 +277,12 @@ export default function CeoDashboard() {
                         )}
                         {isCurrent && !log && (
                           <span style={{ fontSize: '11px', color: '#f59e0b',
-                                         fontWeight: '500' }}>
-                            In Progress
-                          </span>
+                                         fontWeight: '500' }}>In Progress</span>
                         )}
                       </div>
                     )
                   })}
 
-                  {/* Input data */}
                   {ex.inputData && (
                     <div style={{ marginTop: '12px' }}>
                       <p style={{ fontSize: '12px', fontWeight: '500',
@@ -305,7 +302,7 @@ export default function CeoDashboard() {
         </div>
       )}
 
-      {/* Reject Modal */}
+    
       {rejectModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.4)', display: 'flex',
@@ -327,9 +324,7 @@ export default function CeoDashboard() {
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button className="btn"
-                onClick={() => { setRejectModal(null); setComment('') }}>
-                Cancel
-              </button>
+                onClick={() => { setRejectModal(null); setComment('') }}>Cancel</button>
               <button className="btn btn-danger" onClick={handleReject}>
                 Confirm Reject
               </button>

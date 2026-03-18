@@ -40,7 +40,7 @@ export default function Navbar() {
       padding: '0 24px', display: 'flex', alignItems: 'center',
       justifyContent: 'space-between', height: '56px'
     }}>
-      {/* left — logo + links */}
+     
       <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
         <span style={{ fontWeight: '700', fontSize: '16px', color: '#111' }}>
           Workflow Engine
@@ -49,7 +49,7 @@ export default function Navbar() {
         {user?.role === 'ADMIN' && <>
           {link('/', 'Workflows')}
           {link('/audit', 'Audit Log')}
-          {link('/users', 'Users')}
+          {/* {link('/users', 'Users')} */}
         </>}
 
         {user?.role === 'MANAGER' && <>
@@ -65,7 +65,7 @@ export default function Navbar() {
         </>}
       </div>
 
-      {/* right — user info + logout */}
+      
       {user && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '13px', color: '#666' }}>{user.name}</span>

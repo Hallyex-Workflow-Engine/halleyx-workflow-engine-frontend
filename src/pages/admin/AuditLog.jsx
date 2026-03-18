@@ -1,19 +1,29 @@
 import { useEffect, useState } from 'react'
 import { getAllExecutions } from '../../api/ExecutionApi'
+import { getAllUsers } from '../../api/userApi'
 import StatusBadge from '../../components/StatusBadge'
 
 export default function AuditLog() {
   const [executions, setExecutions] = useState([])
+  const [users, setUsers]           = useState([])
   const [loading, setLoading]       = useState(true)
   const [selected, setSelected]     = useState(null)
   const [error, setError]           = useState('')
 
   useEffect(() => {
-    getAllExecutions()
-      .then(res => setExecutions(res.data || []))
+    Promise.all([getAllExecutions(), getAllUsers()])
+      .then(([exRes, usersRes]) => {
+        setExecutions(exRes.data || [])
+        setUsers(usersRes.data || [])
+      })
       .catch(() => setError('Failed to load audit log'))
       .finally(() => setLoading(false))
   }, [])
+
+  const getUserName = (id) => {
+    const u = users.find(u => u.id === id)
+    return u ? u.name : id ? id.substring(0, 8) + '...' : '—'
+  }
 
   if (loading) return <div style={{ padding: 40, color: '#999' }}>Loading...</div>
 
@@ -23,8 +33,8 @@ export default function AuditLog() {
 
       {error && (
         <div style={{ background: '#fee2e2', color: '#dc2626',
-                      padding: '10px 14px', borderRadius: '8px',
-                      marginBottom: '16px', fontSize: '13px' }}>
+          padding: '10px 14px', borderRadius: '8px',
+          marginBottom: '16px', fontSize: '13px' }}>
           {error}
         </div>
       )}
@@ -61,7 +71,7 @@ export default function AuditLog() {
                   <td>v{ex.workflowVersion}</td>
                   <td><StatusBadge status={ex.status} /></td>
                   <td style={{ fontSize: '12px', color: '#666' }}>
-                    {ex.triggeredBy || '—'}
+                    {getUserName(ex.triggeredBy)}
                   </td>
                   <td style={{ fontSize: '12px', color: '#666' }}>
                     {ex.startedAt ? new Date(ex.startedAt).toLocaleString() : '—'}
@@ -75,8 +85,7 @@ export default function AuditLog() {
                       style={{ fontSize: '12px', padding: '4px 10px',
                                borderRadius: '6px', cursor: 'pointer',
                                background: '#ede9fe', color: '#5b21b6',
-                               border: '1px solid #ddd8fe' }}
-                    >
+                               border: '1px solid #ddd8fe' }}>
                       {selected?.id === ex.id ? 'Hide' : 'View Logs'}
                     </button>
                   </td>
@@ -103,7 +112,7 @@ export default function AuditLog() {
                           </div>
                           <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
                             Type: {log.step_type}
-                            {log.approver_id && ` · Approver: ${log.approver_id}`}
+                            {log.approver_id && ` · By: ${getUserName(log.approver_id)}`}
                             {log.comment && ` · Comment: ${log.comment}`}
                           </div>
                         </div>

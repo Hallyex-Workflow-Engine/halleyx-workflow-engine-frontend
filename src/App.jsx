@@ -10,7 +10,7 @@ import RuleEditor       from './pages/admin/RuleEditor'
 import AuditLog         from './pages/admin/AuditLog'
 import UserManager      from './pages/admin/UserManager'
 import EmployeeDashboard from './pages/employee/EmployeeDashboard'
-import ManagerDashboard from './pages/manager/ManagerDashboard'
+import ManagerDashboard from './pages/Manager/ManagerDashboard'
 import CeoDashboard     from './pages/ceo/CeoDashboard'
 
 function RoleRedirect() {

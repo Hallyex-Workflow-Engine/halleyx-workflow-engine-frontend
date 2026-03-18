@@ -4,6 +4,15 @@ import { getWorkflowById, createWorkflow, updateWorkflow, setStartStep } from '.
 import { getStepsByWorkflow, addStep, updateStep, deleteStep } from '../../api/stepApi'
 
 const STEP_TYPES = ['APPROVAL', 'NOTIFICATION', 'TASK']
+const FIELD_TYPES = ['number', 'string', 'boolean']
+
+const emptyField = () => ({
+  id: Date.now(),
+  name: '',
+  type: 'string',
+  required: true,
+  allowedValues: ''
+})
 
 export default function WorkflowEditor() {
   const { id }   = useParams()
@@ -16,9 +25,11 @@ export default function WorkflowEditor() {
   const [success, setSuccess]   = useState('')
 
   const [name, setName]               = useState('')
-  const [inputSchema, setInputSchema] = useState('')
   const [startStepId, setStartStepId] = useState('')
   const [steps, setSteps]             = useState([])
+
+  // schema builder fields
+  const [fields, setFields] = useState([emptyField()])
 
   const [showStepForm, setShowStepForm] = useState(false)
   const [editingStep, setEditingStep]   = useState(null)
@@ -37,11 +48,54 @@ export default function WorkflowEditor() {
       ])
       const wf = wfRes.data
       setName(wf.name || '')
-      setInputSchema(wf.inputSchema || '')
       setStartStepId(wf.startStepId || '')
       setSteps(stepsRes.data || [])
+
+      // parse existing inputSchema into fields
+      if (wf.inputSchema) {
+        try {
+          const schema = JSON.parse(wf.inputSchema)
+          const parsed = Object.entries(schema).map(([key, config]) => ({
+            id: Date.now() + Math.random(),
+            name: key,
+            type: config.type || 'string',
+            required: config.required || false,
+            allowedValues: config.allowed_values
+              ? config.allowed_values.join(', ') : ''
+          }))
+          if (parsed.length > 0) setFields(parsed)
+        } catch { setFields([emptyField()]) }
+      }
     } catch { setError('Failed to load workflow') }
     finally  { setLoading(false) }
+  }
+
+  // convert fields array → JSON schema string
+  const buildSchema = () => {
+    const schema = {}
+    fields.forEach(f => {
+      if (!f.name.trim()) return
+      const entry = {
+        type: f.type,
+        required: f.required
+      }
+      if (f.allowedValues.trim()) {
+        entry.allowed_values = f.allowedValues
+          .split(',')
+          .map(v => v.trim())
+          .filter(Boolean)
+      }
+      schema[f.name.trim()] = entry
+    })
+    return JSON.stringify(schema)
+  }
+
+  const addField = () => setFields(prev => [...prev, emptyField()])
+
+  const removeField = (id) => setFields(prev => prev.filter(f => f.id !== id))
+
+  const updateField = (id, key, value) => {
+    setFields(prev => prev.map(f => f.id === id ? { ...f, [key]: value } : f))
   }
 
   const flash = (msg) => {
@@ -51,8 +105,11 @@ export default function WorkflowEditor() {
 
   const handleSave = async () => {
     if (!name.trim()) { setError('Name is required'); return }
+    const validFields = fields.filter(f => f.name.trim())
+    if (validFields.length === 0) { setError('Add at least one input field'); return }
     setSaving(true); setError('')
     try {
+      const inputSchema = buildSchema()
       if (isEdit) {
         await updateWorkflow(id, { name, inputSchema })
         flash('Workflow updated!')
@@ -128,24 +185,137 @@ export default function WorkflowEditor() {
           Workflow Details
         </h2>
         <div className="form-group">
-          <label className="label">Name *</label>
+          <label className="label">Workflow Name *</label>
           <input value={name} onChange={e => setName(e.target.value)}
-            placeholder="e.g. Expense Approval" />
+            placeholder="e.g. Expense Approval, Leave Request" />
         </div>
-        <div className="form-group">
-          <label className="label">Input Schema (JSON)</label>
-          <textarea rows={5} value={inputSchema}
-            onChange={e => setInputSchema(e.target.value)}
-            placeholder={'{\n  "amount": {"type": "number", "required": true}\n}'}
-            style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: '12px' }}
-          />
+
+        {/* Visual Schema Builder */}
+        <div style={{ marginTop: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between',
+                        alignItems: 'center', marginBottom: '10px' }}>
+            <label className="label" style={{ margin: 0 }}>
+              Input Fields
+              <span style={{ fontSize: '11px', color: '#999',
+                             fontWeight: '400', marginLeft: '6px' }}>
+                (fields the user fills when executing this workflow)
+              </span>
+            </label>
+            <button className="btn btn-primary"
+              style={{ fontSize: '12px', padding: '4px 12px' }}
+              onClick={addField}>
+              + Add Field
+            </button>
+          </div>
+
+          {/* Field rows */}
+          {fields.map((field, index) => (
+            <div key={field.id} style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 120px 80px 1fr 36px',
+              gap: '8px', alignItems: 'center',
+              background: '#f9fafb', padding: '10px 12px',
+              borderRadius: '8px', marginBottom: '8px',
+              border: '1px solid #e5e5e5'
+            }}>
+              {/* Field name */}
+              <div>
+                <label style={{ fontSize: '11px', color: '#666',
+                                display: 'block', marginBottom: '3px' }}>
+                  Field Name
+                </label>
+                <input
+                  value={field.name}
+                  onChange={e => updateField(field.id, 'name', e.target.value)}
+                  placeholder="e.g. amount, department"
+                  style={{ fontSize: '13px' }}
+                />
+              </div>
+
+              {/* Type */}
+              <div>
+                <label style={{ fontSize: '11px', color: '#666',
+                                display: 'block', marginBottom: '3px' }}>
+                  Type
+                </label>
+                <select
+                  value={field.type}
+                  onChange={e => updateField(field.id, 'type', e.target.value)}
+                  style={{ fontSize: '13px' }}>
+                  {FIELD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+
+              {/* Required toggle */}
+              <div style={{ textAlign: 'center' }}>
+                <label style={{ fontSize: '11px', color: '#666',
+                                display: 'block', marginBottom: '3px' }}>
+                  Required
+                </label>
+                <input
+                  type="checkbox"
+                  checked={field.required}
+                  onChange={e => updateField(field.id, 'required', e.target.checked)}
+                  style={{ width: 'auto', cursor: 'pointer',
+                           transform: 'scale(1.3)', marginTop: '4px' }}
+                />
+              </div>
+
+              {/* Allowed values */}
+              <div>
+                <label style={{ fontSize: '11px', color: '#666',
+                                display: 'block', marginBottom: '3px' }}>
+                  Options (comma separated, optional)
+                </label>
+                <input
+                  value={field.allowedValues}
+                  onChange={e => updateField(field.id, 'allowedValues', e.target.value)}
+                  placeholder="e.g. High, Medium, Low"
+                  style={{ fontSize: '13px' }}
+                  disabled={field.type !== 'string'}
+                />
+              </div>
+
+              {/* Delete */}
+              <button
+                onClick={() => removeField(field.id)}
+                disabled={fields.length === 1}
+                style={{
+                  background: fields.length === 1 ? '#f3f4f6' : '#fee2e2',
+                  color: fields.length === 1 ? '#999' : '#dc2626',
+                  border: 'none', borderRadius: '6px',
+                  width: '32px', height: '32px', cursor: fields.length === 1
+                    ? 'not-allowed' : 'pointer',
+                  fontSize: '16px', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', marginTop: '18px'
+                }}>
+                ×
+              </button>
+            </div>
+          ))}
+
+          {/* Preview */}
+          <details style={{ marginTop: '8px' }}>
+            <summary style={{ fontSize: '12px', color: '#999',
+                              cursor: 'pointer', userSelect: 'none' }}>
+              Preview JSON schema
+            </summary>
+            <pre style={{ background: '#f5f5f5', padding: '10px',
+                          borderRadius: '6px', fontSize: '11px',
+                          marginTop: '6px', overflow: 'auto' }}>
+              {JSON.stringify(JSON.parse(buildSchema() || '{}'), null, 2)}
+            </pre>
+          </details>
         </div>
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+
+        <button className="btn btn-primary"
+          onClick={handleSave} disabled={saving}
+          style={{ marginTop: '16px' }}>
           {saving ? 'Saving...' : isEdit ? 'Update Workflow' : 'Create Workflow'}
         </button>
       </div>
 
-      {/* Steps — only in edit mode */}
+      {/* Steps */}
       {isEdit && (
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between',
@@ -190,7 +360,6 @@ export default function WorkflowEditor() {
                       assignee = m.assignee_email || '—'
                     }
                   } catch {}
-
                   return (
                     <tr key={step.id}>
                       <td style={{ color: '#999' }}>{step.stepOrder}</td>
@@ -216,8 +385,8 @@ export default function WorkflowEditor() {
                             Start ✓
                           </span>
                         ) : (
-                          <button className="btn" style={{ fontSize: '11px',
-                            padding: '3px 10px' }}
+                          <button className="btn"
+                            style={{ fontSize: '11px', padding: '3px 10px' }}
                             onClick={() => handleSetStart(step.id)}>
                             Set Start
                           </button>
@@ -225,18 +394,19 @@ export default function WorkflowEditor() {
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          <button className="btn" style={{ fontSize: '12px',
-                            padding: '4px 10px' }}
+                          <button className="btn"
+                            style={{ fontSize: '12px', padding: '4px 10px' }}
                             onClick={() => openEdit(step)}>Edit</button>
-                          <button className="btn" style={{ fontSize: '12px',
-                            padding: '4px 10px', background: '#ede9fe',
-                            color: '#6d28d9', border: '1px solid #ddd8fe' }}
+                          <button className="btn"
+                            style={{ fontSize: '12px', padding: '4px 10px',
+                                     background: '#ede9fe', color: '#6d28d9',
+                                     border: '1px solid #ddd8fe' }}
                             onClick={() => navigate(
                               `/steps/${step.id}/rules?workflowId=${id}`)}>
                             Rules
                           </button>
-                          <button className="btn btn-danger" style={{ fontSize: '12px',
-                            padding: '4px 10px' }}
+                          <button className="btn btn-danger"
+                            style={{ fontSize: '12px', padding: '4px 10px' }}
                             onClick={() => handleDeleteStep(step.id)}>Delete</button>
                         </div>
                       </td>
@@ -270,20 +440,71 @@ export default function WorkflowEditor() {
               <select value={stepType} onChange={e => setStepType(e.target.value)}>
                 {STEP_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
+              <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+                APPROVAL = waits for human · NOTIFICATION = auto sends · TASK = auto runs
+              </p>
             </div>
             <div className="form-group">
               <label className="label">Order</label>
-              <input type="number" value={stepOrder} min={1} style={{ maxWidth: '100px' }}
+              <input type="number" value={stepOrder} min={1}
+                style={{ maxWidth: '100px' }}
                 onChange={e => setStepOrder(Number(e.target.value))} />
             </div>
-            <div className="form-group">
-              <label className="label">Metadata (JSON)</label>
-              <textarea rows={3} value={stepMetadata}
-                onChange={e => setStepMetadata(e.target.value)}
-                placeholder='{"assignee_email": "manager@company.com"}'
-                style={{ fontFamily: 'monospace', fontSize: '12px', resize: 'vertical' }}
-              />
-            </div>
+
+            {/* Smart metadata — only show assignee field for APPROVAL */}
+            {stepType === 'APPROVAL' && (
+              <div className="form-group">
+                <label className="label">Assignee Email *</label>
+                <input
+                  value={(() => {
+                    try {
+                      return JSON.parse(stepMetadata).assignee_email || ''
+                    } catch { return '' }
+                  })()}
+                  onChange={e => setStepMetadata(
+                    JSON.stringify({ assignee_email: e.target.value })
+                  )}
+                  placeholder="e.g. manager@company.com"
+                />
+                <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+                  This person will see the approval request in their dashboard
+                </p>
+              </div>
+            )}
+
+            {stepType === 'NOTIFICATION' && (
+              <div className="form-group">
+                <label className="label">Notification Channel</label>
+                <select
+                  value={(() => {
+                    try { return JSON.parse(stepMetadata).channel || 'email' }
+                    catch { return 'email' }
+                  })()}
+                  onChange={e => setStepMetadata(
+                    JSON.stringify({ channel: e.target.value })
+                  )}>
+                  <option value="email">Email</option>
+                  <option value="slack">Slack</option>
+                  <option value="sms">SMS</option>
+                </select>
+              </div>
+            )}
+
+            {stepType === 'TASK' && (
+              <div className="form-group">
+                <label className="label">Task Description (optional)</label>
+                <input
+                  value={(() => {
+                    try { return JSON.parse(stepMetadata).description || '' }
+                    catch { return '' }
+                  })()}
+                  onChange={e => setStepMetadata(
+                    JSON.stringify({ description: e.target.value })
+                  )}
+                  placeholder="e.g. Update database record"
+                />
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button className="btn"
