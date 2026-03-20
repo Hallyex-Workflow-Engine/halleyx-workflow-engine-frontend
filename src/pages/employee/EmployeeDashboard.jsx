@@ -16,7 +16,6 @@ export default function EmployeeDashboard() {
   const [loading, setLoading]             = useState(true)
   const [error, setError]                 = useState('')
   const [search, setSearch]               = useState('')
-  
 
   const [selectedWf, setSelectedWf]           = useState(null)
   const [inputFields, setInputFields]         = useState({})
@@ -189,7 +188,7 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
-     
+      {/* TAB 2 — My Executions */}
       {activeTab === 'myex' && (
         <div>
           {myExecutions.length === 0 ? (
@@ -281,7 +280,7 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
-    
+      {/* Execute Modal */}
       {selectedWf && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.4)', display: 'flex',
@@ -368,7 +367,7 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
-     
+      {/* Track Modal */}
       {trackExecution && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.4)', display: 'flex',
@@ -396,37 +395,43 @@ export default function EmployeeDashboard() {
               const log = trackExecution.logs?.find(l =>
                 l.step_name?.toLowerCase().trim() === step.name?.toLowerCase().trim()
               )
-              const isCurrent = trackExecution.currentStepName === step.name
-              const currentStepIndex = trackSteps.findIndex(
-                s => s.name === trackExecution.currentStepName
-              )
-              const isCompleted =
-                log?.status === 'completed' ||
-                (currentStepIndex > index && currentStepIndex !== -1) ||
-                (trackExecution.status === 'COMPLETED' && index < trackSteps.length)
-              const isRejected = log?.status === 'rejected'
+              const isCurrent   = trackExecution.currentStepName === step.name
+              const isCompleted = log?.status === 'completed'
+              const isRejected  = log?.status === 'rejected'
+              const isSkipped   = !log && !isCurrent
 
               return (
                 <div key={step.id} style={{
                   display: 'flex', alignItems: 'center', gap: '12px',
                   padding: '10px 14px', borderRadius: '8px', marginBottom: '8px',
-                  background: isCurrent ? '#fef3c7'
-                    : isRejected ? '#fef2f2'
-                    : isCompleted ? '#f0fdf4' : '#f9fafb',
-                  border: isCurrent ? '1px solid #fde68a'
-                    : isRejected ? '1px solid #fecaca'
-                    : isCompleted ? '1px solid #bbf7d0' : '1px solid #e5e5e5'
+                  background: isCurrent   ? '#fef3c7'
+                    : isRejected  ? '#fef2f2'
+                    : isCompleted ? '#f0fdf4'
+                    : isSkipped   ? '#f3f4f6'
+                    : '#f9fafb',
+                  border: isCurrent   ? '1px solid #fde68a'
+                    : isRejected  ? '1px solid #fecaca'
+                    : isCompleted ? '1px solid #bbf7d0'
+                    : isSkipped   ? '1px solid #e5e7eb'
+                    : '1px solid #e5e5e5'
                 }}>
                   <span style={{
                     width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
-                    background: isRejected ? '#ef4444'
+                    background: isRejected  ? '#ef4444'
                       : isCompleted ? '#22c55e'
-                      : isCurrent ? '#f59e0b' : '#d1d5db',
+                      : isCurrent   ? '#f59e0b'
+                      : isSkipped   ? '#9ca3af'
+                      : '#d1d5db',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'white', fontSize: '11px', fontWeight: '700'
                   }}>
-                    {isRejected ? '✗' : isCompleted ? '✓' : isCurrent ? '⏳' : step.stepOrder}
+                    {isRejected  ? '✗'
+                      : isCompleted ? '✓'
+                      : isCurrent   ? '⏳'
+                      : isSkipped   ? '–'
+                      : step.stepOrder}
                   </span>
+
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: '500', fontSize: '13px', color: '#111' }}>
                       {step.name}
@@ -442,6 +447,7 @@ export default function EmployeeDashboard() {
                       })()}
                     </div>
                   </div>
+
                   <div style={{ fontSize: '11px', textAlign: 'right' }}>
                     {isRejected && (
                       <>
@@ -467,207 +473,26 @@ export default function EmployeeDashboard() {
                     {isCurrent && (
                       <div style={{ color: '#f59e0b', fontWeight: '500' }}>In Progress</div>
                     )}
+                    {isSkipped && (
+                      <div style={{ color: '#6b7280' }}>skipped</div>
+                    )}
                   </div>
                 </div>
               )
             })}
 
-            // ... (ALL YOUR IMPORTS AND CODE ABOVE REMAINS SAME)
-
-{trackExecution && (
-  <div style={{
-    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-    background: 'rgba(0,0,0,0.4)', display: 'flex',
-    alignItems: 'center', justifyContent: 'center', zIndex: 100
-  }}>
-    <div style={{
-      background: 'white', borderRadius: '12px', padding: '24px',
-      width: '560px', maxWidth: '90vw', maxHeight: '80vh', overflowY: 'auto'
-    }}>
-      
-      <div style={{
-        display: 'flex', justifyContent: 'space-between',
-        alignItems: 'center', marginBottom: '12px'
-      }}>
-        <h3 style={{ fontSize: '16px', fontWeight: '600' }}>
-          Tracking: {trackExecution.workflowName}
-        </h3>
-        <button className="btn" onClick={() => setTrackExecution(null)}>
-          Close
-        </button>
-      </div>
-
-      <div style={{ marginBottom: '16px' }}>
-        <StatusBadge status={trackExecution.status} />
-      </div>
-
-      <h4 style={{
-        fontSize: '13px', fontWeight: '600',
-        color: '#555', marginBottom: '10px'
-      }}>
-        Workflow Steps
-      </h4>
-
-      {/* ✅ FIXED SECTION STARTS HERE */}
-      {trackSteps.map((step, index) => {
-        const log = trackExecution.logs?.find(l =>
-          l.step_name?.toLowerCase().trim() === step.name?.toLowerCase().trim()
-        )
-
-        const isCurrent = trackExecution.currentStepName === step.name
-
-        // ✅ FIXED LOGIC (IMPORTANT)
-        const isCompleted = log?.status === 'completed'
-        const isRejected = log?.status === 'rejected'
-        const isSkipped = !log && !isCurrent
-
-        return (
-          <div key={step.id} style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            marginBottom: '8px',
-
-            background: isCurrent ? '#fef3c7'
-              : isRejected ? '#fef2f2'
-              : isCompleted ? '#f0fdf4'
-              : isSkipped ? '#f3f4f6'
-              : '#f9fafb',
-
-            border: isCurrent ? '1px solid #fde68a'
-              : isRejected ? '1px solid #fecaca'
-              : isCompleted ? '1px solid #bbf7d0'
-              : isSkipped ? '1px solid #e5e7eb'
-              : '1px solid #e5e5e5'
-          }}>
-            
-            <span style={{
-              width: '24px',
-              height: '24px',
-              borderRadius: '50%',
-              flexShrink: 0,
-
-              background: isRejected ? '#ef4444'
-                : isCompleted ? '#22c55e'
-                : isCurrent ? '#f59e0b'
-                : isSkipped ? '#9ca3af'
-                : '#d1d5db',
-
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '11px',
-              fontWeight: '700'
-            }}>
-              {isRejected ? '✗'
-                : isCompleted ? '✓'
-                : isCurrent ? '⏳'
-                : isSkipped ? '–'
-                : step.stepOrder}
-            </span>
-
-            <div style={{ flex: 1 }}>
-              <div style={{
-                fontWeight: '500',
-                fontSize: '13px',
-                color: '#111'
-              }}>
-                {step.name}
+            {trackExecution.inputData && (
+              <div style={{ marginTop: '16px' }}>
+                <h4 style={{ fontSize: '13px', fontWeight: '600',
+                             color: '#555', marginBottom: '8px' }}>
+                  Input Data
+                </h4>
+                <pre style={{ background: '#f5f5f5', padding: '10px',
+                              borderRadius: '6px', fontSize: '11px', overflow: 'auto' }}>
+                  {JSON.stringify(trackExecution.inputData, null, 2)}
+                </pre>
               </div>
-
-              <div style={{
-                fontSize: '11px',
-                color: '#999',
-                marginTop: '2px'
-              }}>
-                {step.stepType}
-                {step.metadata && (() => {
-                  try {
-                    const m = JSON.parse(step.metadata)
-                    return m.assignee_email
-                      ? ` · Assigned to: ${m.assignee_email}` : ''
-                  } catch {
-                    return ''
-                  }
-                })()}
-              </div>
-            </div>
-
-            <div style={{ fontSize: '11px', textAlign: 'right' }}>
-              {isRejected && (
-                <>
-                  <div style={{ color: '#dc2626', fontWeight: '500' }}>
-                    Rejected
-                  </div>
-                  {log?.approver_id && (
-                    <div style={{ color: '#999' }}>
-                      by {getUserName(log.approver_id)}
-                    </div>
-                  )}
-                  {log?.comment && (
-                    <div style={{ color: '#dc2626' }}>
-                      {log.comment}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {!isRejected && isCompleted && log?.approver_id && (
-                <div style={{ color: '#15803d' }}>
-                  by {getUserName(log.approver_id)}
-                </div>
-              )}
-
-              {!isRejected && isCompleted && !log?.approver_id && (
-                <div style={{ color: '#15803d' }}>
-                  auto completed
-                </div>
-              )}
-
-              {isCurrent && (
-                <div style={{ color: '#f59e0b', fontWeight: '500' }}>
-                  In Progress
-                </div>
-              )}
-
-              {isSkipped && (
-                <div style={{ color: '#6b7280' }}>
-                  skipped
-                </div>
-              )}
-            </div>
-          </div>
-        )
-      })}
-      {/* ✅ FIXED SECTION ENDS HERE */}
-
-      {trackExecution.inputData && (
-        <div style={{ marginTop: '16px' }}>
-          <h4 style={{
-            fontSize: '13px',
-            fontWeight: '600',
-            color: '#555',
-            marginBottom: '8px'
-          }}>
-            Input Data
-          </h4>
-          <pre style={{
-            background: '#f5f5f5',
-            padding: '10px',
-            borderRadius: '6px',
-            fontSize: '11px',
-            overflow: 'auto'
-          }}>
-            {JSON.stringify(trackExecution.inputData, null, 2)}
-          </pre>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+            )}
           </div>
         </div>
       )}

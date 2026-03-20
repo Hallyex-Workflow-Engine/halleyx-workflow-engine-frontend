@@ -10,9 +10,9 @@ const ROLE_COLORS = {
 }
 
 const ROLE_ICONS = {
-  ADMIN: '👤',
-  MANAGER: '👤',
-  CEO: '👤',
+  ADMIN:    '👤',
+  MANAGER:  '👤',
+  CEO:      '👤',
   EMPLOYEE: '👤',
 }
 
@@ -102,7 +102,7 @@ export default function Navbar() {
       {/* RIGHT SIDE */}
       {user && (
         <div style={{ position: 'relative' }}>
-          
+
           {/* PROFILE BUTTON */}
           <div
             onClick={() => setOpen(!open)}
@@ -178,8 +178,6 @@ export default function Navbar() {
               >
                 👤 My Profile
               </div>
-
-             
 
               <div
                 onClick={handleLogout}
