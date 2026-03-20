@@ -271,7 +271,7 @@ export default function ManagerDashboard() {
               <button className="btn"
                 onClick={() => { setRejectModal(null); setComment('') }}>Cancel</button>
               <button className="btn btn-danger" onClick={handleReject}>
-                Confirm Reject
+                Confirm  Reject
               </button>
             </div>
           </div>
