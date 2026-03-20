@@ -2,16 +2,17 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { RoleRoute, ProtectedRoute } from './components/ProtectedRoute'
 import Navbar from './components/Navbar'
+import Profile from './pages/Profile'
 
-import Login            from './pages/Login'
-import AdminDashboard   from './pages/admin/AdminDashboard'
-import WorkflowEditor   from './pages/admin/WorkflowEditor'
-import RuleEditor       from './pages/admin/RuleEditor'
-import AuditLog         from './pages/admin/AuditLog'
-import UserManager      from './pages/admin/UserManager'
-import EmployeeDashboard from './pages/employee/EmployeeDashboard'
-import ManagerDashboard from './pages/Manager/ManagerDashboard'
-import CeoDashboard     from './pages/ceo/CeoDashboard'
+import Login                from './pages/Login'
+import AdminDashboard       from './pages/admin/AdminDashboard'
+import WorkflowEditor       from './pages/admin/WorkflowEditor'
+import RuleEditor           from './pages/admin/RuleEditor'
+import AuditLog             from './pages/admin/AuditLog'
+import UserManager          from './pages/admin/UserManager'
+import EmployeeDashboard    from './pages/employee/EmployeeDashboard'
+import ManagerDashboard     from './pages/Manager/ManagerDashboard'
+import CeoDashboard         from './pages/ceo/CeoDashboard'
 
 function RoleRedirect() {
   const { user, loading } = useAuth()
@@ -19,11 +20,11 @@ function RoleRedirect() {
   if (!user)   return <Navigate to="/login" replace />
 
   switch (user.role) {
-    case 'ADMIN':    return <Navigate to="/"            replace />
-    case 'MANAGER':  return <Navigate to="/manager"     replace />
-    case 'CEO':      return <Navigate to="/ceo"         replace />
-    case 'EMPLOYEE': return <Navigate to="/executions"  replace />
-    default:         return <Navigate to="/login"       replace />
+    case 'ADMIN':    return <Navigate to="/"             replace />
+    case 'MANAGER':  return <Navigate to="/manager"      replace />
+    case 'CEO':      return <Navigate to="/ceo"          replace />
+    case 'EMPLOYEE': return <Navigate to="/executions"   replace />
+    default:         return <Navigate to="/login"        replace />
   }
 }
 
@@ -34,11 +35,18 @@ function AppRoutes() {
       <div style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto' }}>
         <Routes>
           {/* public */}
-          <Route path="/login"        element={<Login />} />
-          <Route path="/unauthorized" element={<div style={{padding:40}}>Access denied.</div>} />
+          <Route path="/login"         element={<Login />} />
+          <Route path="/unauthorized"  element={<div style={{padding:40}}>Access denied.</div>} />
 
           {/* role redirect */}
-          <Route path="/redirect" element={<RoleRedirect />} />
+          <Route path="/redirect"      element={<RoleRedirect />} />
+          
+          {/* profile - accessible to ALL authenticated users */}
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
 
           {/* admin */}
           <Route path="/" element={
