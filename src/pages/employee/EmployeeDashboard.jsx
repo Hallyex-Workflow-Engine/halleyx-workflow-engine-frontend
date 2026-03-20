@@ -188,7 +188,7 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
-     
+      {/* TAB 2 — My Executions */}
       {activeTab === 'myex' && (
         <div>
           {myExecutions.length === 0 ? (
@@ -280,7 +280,7 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
-    
+      {/* Execute Modal */}
       {selectedWf && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.4)', display: 'flex',
@@ -367,7 +367,7 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
-     
+      {/* Track Modal */}
       {trackExecution && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.4)', display: 'flex',
@@ -395,37 +395,43 @@ export default function EmployeeDashboard() {
               const log = trackExecution.logs?.find(l =>
                 l.step_name?.toLowerCase().trim() === step.name?.toLowerCase().trim()
               )
-              const isCurrent = trackExecution.currentStepName === step.name
-              const currentStepIndex = trackSteps.findIndex(
-                s => s.name === trackExecution.currentStepName
-              )
-              const isCompleted =
-                log?.status === 'completed' ||
-                (currentStepIndex > index && currentStepIndex !== -1) ||
-                (trackExecution.status === 'COMPLETED' && index < trackSteps.length)
-              const isRejected = log?.status === 'rejected'
+              const isCurrent   = trackExecution.currentStepName === step.name
+              const isCompleted = log?.status === 'completed'
+              const isRejected  = log?.status === 'rejected'
+              const isSkipped   = !log && !isCurrent
 
               return (
                 <div key={step.id} style={{
                   display: 'flex', alignItems: 'center', gap: '12px',
                   padding: '10px 14px', borderRadius: '8px', marginBottom: '8px',
-                  background: isCurrent ? '#fef3c7'
-                    : isRejected ? '#fef2f2'
-                    : isCompleted ? '#f0fdf4' : '#f9fafb',
-                  border: isCurrent ? '1px solid #fde68a'
-                    : isRejected ? '1px solid #fecaca'
-                    : isCompleted ? '1px solid #bbf7d0' : '1px solid #e5e5e5'
+                  background: isCurrent   ? '#fef3c7'
+                    : isRejected  ? '#fef2f2'
+                    : isCompleted ? '#f0fdf4'
+                    : isSkipped   ? '#f3f4f6'
+                    : '#f9fafb',
+                  border: isCurrent   ? '1px solid #fde68a'
+                    : isRejected  ? '1px solid #fecaca'
+                    : isCompleted ? '1px solid #bbf7d0'
+                    : isSkipped   ? '1px solid #e5e7eb'
+                    : '1px solid #e5e5e5'
                 }}>
                   <span style={{
                     width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
-                    background: isRejected ? '#ef4444'
+                    background: isRejected  ? '#ef4444'
                       : isCompleted ? '#22c55e'
-                      : isCurrent ? '#f59e0b' : '#d1d5db',
+                      : isCurrent   ? '#f59e0b'
+                      : isSkipped   ? '#9ca3af'
+                      : '#d1d5db',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'white', fontSize: '11px', fontWeight: '700'
                   }}>
-                    {isRejected ? '✗' : isCompleted ? '✓' : isCurrent ? '⏳' : step.stepOrder}
+                    {isRejected  ? '✗'
+                      : isCompleted ? '✓'
+                      : isCurrent   ? '⏳'
+                      : isSkipped   ? '–'
+                      : step.stepOrder}
                   </span>
+
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: '500', fontSize: '13px', color: '#111' }}>
                       {step.name}
@@ -441,6 +447,7 @@ export default function EmployeeDashboard() {
                       })()}
                     </div>
                   </div>
+
                   <div style={{ fontSize: '11px', textAlign: 'right' }}>
                     {isRejected && (
                       <>
@@ -465,6 +472,9 @@ export default function EmployeeDashboard() {
                     )}
                     {isCurrent && (
                       <div style={{ color: '#f59e0b', fontWeight: '500' }}>In Progress</div>
+                    )}
+                    {isSkipped && (
+                      <div style={{ color: '#6b7280' }}>skipped</div>
                     )}
                   </div>
                 </div>
