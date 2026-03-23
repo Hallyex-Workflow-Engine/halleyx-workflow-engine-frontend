@@ -11,7 +11,7 @@ A role-based React application that serves as the user interface for the Halleyx
 Click the thumbnail above to watch the full project walkthrough on YouTube.
 
 ---
-
+open the react on the port = "http://localhost:5173"
 ## Table of Contents
 
 - [Overview](#overview)
